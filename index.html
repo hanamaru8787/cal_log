@@ -310,21 +310,110 @@
       cursor: pointer;
     }
 
-    /* Rates Cards */
-    .rate-card {
-      text-align: center;
-      padding: 16px;
+    /* Calendar UI */
+    .cal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
     }
 
-    .rate-val {
-      font-size: 1.8rem;
+    .cal-header h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .cal-nav-btn {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: none;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      text-align: center;
+    }
+
+    .cal-day-header {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 4px 0;
+    }
+
+    .cal-cell {
+      aspect-ratio: 1;
+      background: var(--bg-color);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2px;
+      cursor: pointer;
+      position: relative;
+      border: 1px solid transparent;
+    }
+
+    .cal-cell.empty {
+      background: transparent;
+      cursor: default;
+    }
+
+    .cal-cell.today {
+      border-color: var(--primary);
+      font-weight: bold;
+    }
+
+    .cal-cell-num {
+      font-size: 0.8rem;
+      line-height: 1;
+    }
+
+    .cal-cell-status {
+      font-size: 0.85rem;
+      margin-top: 2px;
+      line-height: 1;
+    }
+
+    /* Compact Rates Cards */
+    .rates-summary-card {
+      display: flex;
+      justify-content: space-around;
+      padding: 12px;
+      margin-top: 16px;
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .rate-summary-item {
+      text-align: center;
+    }
+
+    .rate-summary-title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .rate-summary-val {
+      font-size: 1.1rem;
       font-weight: 700;
       color: var(--secondary);
-      margin: 4px 0;
     }
 
-    .rate-sub {
-      font-size: 0.8rem;
+    .rate-summary-sub {
+      font-size: 0.7rem;
       color: var(--text-muted);
     }
   </style>
@@ -359,18 +448,30 @@
       <div id="meals-container"></div>
     </div>
 
-    <!-- Tab 2: Rates / Analytics -->
-    <div id="tab-rates" class="tab-content">
-      <div class="card rate-card">
-        <h3>直近7日間</h3>
-        <div class="rate-val" id="rate-7d">0%</div>
-        <div class="rate-sub" id="sub-7d">目標達成：0日 / 記録日数 0日</div>
+    <!-- Tab 2: Calendar -->
+    <div id="tab-calendar" class="tab-content">
+      <div class="card">
+        <div class="cal-header">
+          <button class="cal-nav-btn" onclick="changeMonth(-1)">‹ 前月</button>
+          <h3 id="cal-month-title">2026年 9月</h3>
+          <button class="cal-nav-btn" onclick="changeMonth(1)">翌月 ›</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
       </div>
 
-      <div class="card rate-card">
-        <h3>今月</h3>
-        <div class="rate-val" id="rate-month">0%</div>
-        <div class="rate-sub" id="sub-month">目標達成：0日 / 記録日数 0日</div>
+      <!-- Compact Rates Summary -->
+      <div class="rates-summary-card">
+        <div class="rate-summary-item">
+          <div class="rate-summary-title">直近7日間</div>
+          <div class="rate-summary-val" id="rate-7d">0%</div>
+          <div class="rate-summary-sub" id="sub-7d">目標達成：0日 / 記録日数 0日</div>
+        </div>
+        <div style="width: 1px; background: var(--border);"></div>
+        <div class="rate-summary-item">
+          <div class="rate-summary-title">今月</div>
+          <div class="rate-summary-val" id="rate-month">0%</div>
+          <div class="rate-summary-sub" id="sub-month">目標達成：0日 / 記録日数 0日</div>
+        </div>
       </div>
     </div>
 
@@ -403,8 +504,8 @@
     <button class="tab-btn active" onclick="switchTab('log')">
       <span>📖</span>記録
     </button>
-    <button class="tab-btn" onclick="switchTab('rates')">
-      <span>📊</span>達成率
+    <button class="tab-btn" onclick="switchTab('calendar')">
+      <span>📅</span>カレンダー
     </button>
     <button class="tab-btn" onclick="switchTab('master')">
       <span>🍎</span>食品マスタ
@@ -473,13 +574,14 @@
     let state = {
       targetCalorie: 1250,
       currentDate: getLocalDateString(),
-      records: {}, // { 'YYYY-MM-DD': { '朝': [{ id, name, cal }], ... } }
-      master: []  // [{ id, name, cal }]
+      records: {},
+      master: []
     };
 
+    let calYear = new Date().getFullYear();
+    let calMonth = new Date().getMonth();
     let activeMealType = '';
 
-    // Storage Keys
     const STORAGE_KEY = 'calorie_app_data_v1';
 
     function loadData() {
@@ -504,7 +606,6 @@
       }));
     }
 
-    // Initialize App
     window.addEventListener('DOMContentLoaded', () => {
       loadData();
       document.getElementById('current-date').value = state.currentDate;
@@ -518,7 +619,6 @@
       renderLogTab();
     });
 
-    // Navigation
     function switchTab(tabName) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -527,14 +627,13 @@
       event.currentTarget.classList.add('active');
 
       if (tabName === 'log') renderLogTab();
-      if (tabName === 'rates') renderRatesTab();
+      if (tabName === 'calendar') renderCalendarTab();
       if (tabName === 'master') renderMasterTab();
       if (tabName === 'settings') {
         document.getElementById('target-input').value = state.targetCalorie;
       }
     }
 
-    // Render Log Tab
     function renderLogTab() {
       const dateKey = state.currentDate;
       if (!state.records[dateKey]) {
@@ -542,7 +641,6 @@
       }
       const dayRecord = state.records[dateKey];
 
-      // Calculate total
       let totalCal = 0;
       MEAL_TYPES.forEach(type => {
         if (dayRecord[type]) {
@@ -550,7 +648,6 @@
         }
       });
 
-      // Update Summary
       const target = Number(state.targetCalorie);
       const remaining = target - totalCal;
 
@@ -564,7 +661,6 @@
       document.getElementById('disp-target').textContent = target.toLocaleString();
       document.getElementById('disp-consumed').textContent = totalCal.toLocaleString();
 
-      // Status Badge
       const ratio = target > 0 ? (totalCal / target) * 100 : 0;
       const statusEl = document.getElementById('status-badge');
 
@@ -578,7 +674,6 @@
         statusEl.textContent = 'アウト😵';
       }
 
-      // Render Meals List
       const container = document.getElementById('meals-container');
       container.innerHTML = '';
 
@@ -613,7 +708,6 @@
       });
     }
 
-    // Modal Control
     function openModal(id) {
       document.getElementById(id).classList.add('active');
     }
@@ -621,14 +715,12 @@
       document.getElementById(id).classList.remove('active');
     }
 
-    // Add Meal
     function openAddMealModal(type) {
       activeMealType = type;
       document.getElementById('modal-meal-title').textContent = `${type}に食品を追加`;
       document.getElementById('meal-food-name').value = '';
       document.getElementById('meal-food-cal').value = '';
 
-      // Populate Master Select
       const select = document.getElementById('master-select');
       select.innerHTML = '<option value="">-- 選択してください --</option>';
       state.master.forEach(m => {
@@ -685,7 +777,168 @@
       }
     }
 
-    // Master Tab Operations
+    function changeMonth(delta) {
+      calMonth += delta;
+      if (calMonth < 0) {
+        calMonth = 11;
+        calYear--;
+      } else if (calMonth > 11) {
+        calMonth = 0;
+        calYear++;
+      }
+      renderCalendarTab();
+    }
+
+    function renderCalendarTab() {
+      document.getElementById('cal-month-title').textContent = `${calYear}年 ${calMonth + 1}月`;
+
+      const grid = document.getElementById('cal-grid');
+      grid.innerHTML = '';
+
+      const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+      dayNames.forEach(d => {
+        const h = document.createElement('div');
+        h.className = 'cal-day-header';
+        h.textContent = d;
+        grid.appendChild(h);
+      });
+
+      const firstDay = new Date(calYear, calMonth, 1).getDay();
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+      const todayStr = getLocalDateString();
+      const target = Number(state.targetCalorie);
+
+      for (let i = 0; i < firstDay; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'cal-cell empty';
+        grid.appendChild(emptyCell);
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const mStr = String(calMonth + 1).padStart(2, '0');
+        const dStr = String(day).padStart(2, '0');
+        const dateKey = `${calYear}-${mStr}-${dStr}`;
+
+        const cell = document.createElement('div');
+        cell.className = 'cal-cell';
+        if (dateKey === todayStr) {
+          cell.classList.add('today');
+        }
+
+        let statusEmoji = '';
+        const rec = state.records[dateKey];
+        if (rec) {
+          let itemCount = 0;
+          let dayCal = 0;
+          MEAL_TYPES.forEach(t => {
+            if (rec[t]) {
+              itemCount += rec[t].length;
+              rec[t].forEach(item => dayCal += Number(item.cal || 0));
+            }
+          });
+
+          if (itemCount > 0) {
+            const ratio = target > 0 ? (dayCal / target) * 100 : 0;
+            if (ratio < 80) {
+              statusEmoji = '🙂';
+            } else if (ratio <= 100) {
+              statusEmoji = '😌';
+            } else if (ratio <= 110) {
+              statusEmoji = '😖';
+            } else {
+              statusEmoji = '😵';
+            }
+          }
+        }
+
+        cell.innerHTML = `
+          <div class="cal-cell-num">${day}</div>
+          <div class="cal-cell-status">${statusEmoji}</div>
+        `;
+
+        cell.onclick = () => selectDateFromCalendar(dateKey);
+        grid.appendChild(cell);
+      }
+
+      renderRatesSummary();
+    }
+
+    function selectDateFromCalendar(dateKey) {
+      state.currentDate = dateKey;
+      document.getElementById('current-date').value = dateKey;
+      
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+      document.getElementById('tab-log').classList.add('active');
+      document.querySelectorAll('.tab-btn')[0].classList.add('active');
+
+      renderLogTab();
+    }
+
+    function renderRatesSummary() {
+      const target = Number(state.targetCalorie);
+
+      const recordedDates = Object.keys(state.records).filter(dateKey => {
+        const rec = state.records[dateKey];
+        let count = 0;
+        MEAL_TYPES.forEach(t => {
+          if (rec[t] && rec[t].length > 0) count += rec[t].length;
+        });
+        return count > 0;
+      });
+
+      const today = new Date();
+      
+      const last7DaysStr = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+        last7DaysStr.push(getLocalDateString(d));
+      }
+
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth();
+
+      const valid7Days = recordedDates.filter(d => last7DaysStr.includes(d));
+      const validMonthDays = recordedDates.filter(d => {
+        const parts = d.split('-');
+        return Number(parts[0]) === currentYear && (Number(parts[1]) - 1) === currentMonth;
+      });
+
+      function calcStats(dates) {
+        const totalRecorded = dates.length;
+        if (totalRecorded === 0) {
+          return { rate: 0, achieved: 0, total: 0 };
+        }
+
+        let achieved = 0;
+        dates.forEach(d => {
+          const rec = state.records[d];
+          let dayCal = 0;
+          MEAL_TYPES.forEach(t => {
+            if (rec[t]) {
+              rec[t].forEach(item => dayCal += Number(item.cal || 0));
+            }
+          });
+          if (dayCal <= target) {
+            achieved++;
+          }
+        });
+
+        const rate = Math.round((achieved / totalRecorded) * 100);
+        return { rate, achieved, total: totalRecorded };
+      }
+
+      const stats7d = calcStats(valid7Days);
+      const statsMonth = calcStats(validMonthDays);
+
+      document.getElementById('rate-7d').textContent = `${stats7d.rate}%`;
+      document.getElementById('sub-7d').textContent = `目標達成：${stats7d.achieved}日 / 記録日数 ${stats7d.total}日`;
+
+      document.getElementById('rate-month').textContent = `${statsMonth.rate}%`;
+      document.getElementById('sub-month').textContent = `目標達成：${statsMonth.achieved}日 / 記録日数 ${statsMonth.total}日`;
+    }
+
     function renderMasterTab() {
       const listEl = document.getElementById('master-list');
       if (state.master.length === 0) {
@@ -761,7 +1014,6 @@
       }
     }
 
-    // Settings Tab Operations
     function saveTargetCalorie() {
       const val = document.getElementById('target-input').value;
       if (val === '') {
@@ -775,76 +1027,6 @@
       renderLogTab();
     }
 
-    // Analytics / Rates Tab Operations
-    function renderRatesTab() {
-      const target = Number(state.targetCalorie);
-
-      // Get list of recorded dates with at least 1 item
-      const recordedDates = Object.keys(state.records).filter(dateKey => {
-        const rec = state.records[dateKey];
-        let count = 0;
-        MEAL_TYPES.forEach(t => {
-          if (rec[t] && rec[t].length > 0) count += rec[t].length;
-        });
-        return count > 0;
-      });
-
-      // Local Date calculation
-      const today = new Date();
-      
-      // Calculate 7 Days
-      const last7DaysStr = [];
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
-        last7DaysStr.push(getLocalDateString(d));
-      }
-
-      // Calculate Current Month
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-
-      // Filter recorded dates
-      const valid7Days = recordedDates.filter(d => last7DaysStr.includes(d));
-      const validMonthDays = recordedDates.filter(d => {
-        const parts = d.split('-');
-        return Number(parts[0]) === currentYear && (Number(parts[1]) - 1) === currentMonth;
-      });
-
-      function calcStats(dates) {
-        const totalRecorded = dates.length;
-        if (totalRecorded === 0) {
-          return { rate: 0, achieved: 0, total: 0 };
-        }
-
-        let achieved = 0;
-        dates.forEach(d => {
-          const rec = state.records[d];
-          let dayCal = 0;
-          MEAL_TYPES.forEach(t => {
-            if (rec[t]) {
-              rec[t].forEach(item => dayCal += Number(item.cal || 0));
-            }
-          });
-          if (dayCal <= target) {
-            achieved++;
-          }
-        });
-
-        const rate = Math.round((achieved / totalRecorded) * 100);
-        return { rate, achieved, total: totalRecorded };
-      }
-
-      const stats7d = calcStats(valid7Days);
-      const statsMonth = calcStats(validMonthDays);
-
-      document.getElementById('rate-7d').textContent = `${stats7d.rate}%`;
-      document.getElementById('sub-7d').textContent = `目標達成：${stats7d.achieved}日 / 記録日数 ${stats7d.total}日`;
-
-      document.getElementById('rate-month').textContent = `${statsMonth.rate}%`;
-      document.getElementById('sub-month').textContent = `目標達成：${statsMonth.achieved}日 / 記録日数 ${statsMonth.total}日`;
-    }
-
-    // Utility
     function escapeHtml(str) {
       return String(str)
         .replace(/&/g, '&amp;')
